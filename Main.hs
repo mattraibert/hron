@@ -1,17 +1,22 @@
 import Control.Concurrent
-import Control.Monad (forever)
+import Control.Monad
 import System.Process
 
+main :: IO b
 main = do
-  _ <- forkIO $ f 1 $ echo "frequent process"
-  _ <- forkIO $ f 3 $ echo "less frequent..."
-  _ <- forkIO $ f 10 $ ls
+  void $ forkIO $ schedule 1 $ echo "frequent process"
+  void $ forkIO $ schedule 3 $ slow "less frequent..."
+  void $ forkIO $ schedule 10 ls
   forever $ threadDelay 1000
     where
-      ls = runProcess "ls" [] Nothing Nothing Nothing Nothing Nothing
-      echo msg = runProcess "echo" [msg] Nothing Nothing Nothing Nothing Nothing
-      f :: Int -> (IO a) -> IO ()
-      f t msg = forever $ do
+      runp x y = runProcess x y Nothing Nothing Nothing Nothing Nothing >>= waitForProcess
+      ls = runp "ls" []
+      echo msg = runp "echo" [msg]
+      slow msg = do
+        void $ runp "echo" ["start", msg]
+        void $ runp "sleep" ["10"]
+        void $ runp "echo" ["finish", msg]
+      schedule :: Int -> IO a -> IO ()
+      schedule t fcn = forever $ do
             threadDelay $ t * 1000 * 1000
-            _ <- msg -- 
-            return ()
+            void fcn
